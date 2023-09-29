@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -17,6 +18,7 @@ func main() {
 	}
 	defer conn.Close()
 	conn.Read(data)
+
 	received := string(data)
 	clientId := strings.Split(received, ":")[1]
 	clientId = strings.Split(clientId, "\n")[0]
@@ -34,7 +36,13 @@ func main() {
 func receiveMessage(conn net.Conn) {
 	data := make([]byte, 1024)
 	for {
-		conn.Read(data)
+		_, err := conn.Read(data)
+		if err != nil {
+			if errors.Is(err, net.ErrWriteToConnected) {
+				continue
+			}
+			break
+		}
 		received := string(data)
 		fmt.Println("server: ", received)
 	}
