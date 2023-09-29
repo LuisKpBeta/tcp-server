@@ -19,14 +19,19 @@ type Message struct {
 	Comand string
 	Body   string
 }
+type Connection struct {
+	Con    net.Conn
+	Id     string
+	Active bool
+}
 type Server struct {
-	TotalConns   int
-	ConnectedIds []string
+	TotalConns  int
+	Connections []*Connection
 }
 
 func main() {
 	port := os.Getenv("PORT")
-	idChannels := make(chan string)
+	idChannels := make(chan *Connection)
 	server := Server{}
 	var wg sync.WaitGroup
 
@@ -44,10 +49,10 @@ func main() {
 		go server.HandleConnection(conn, idChannels)
 	}
 }
-func (s *Server) ServerCounter(wg *sync.WaitGroup, ch chan string) {
-	findIndex := func(slice []string, target string) int {
+func (s *Server) ServerCounter(wg *sync.WaitGroup, ch chan *Connection) {
+	findIndex := func(slice []*Connection, target string) int {
 		for i, v := range slice {
-			if v == target {
+			if v.Id == target {
 				return i
 			}
 		}
@@ -56,26 +61,33 @@ func (s *Server) ServerCounter(wg *sync.WaitGroup, ch chan string) {
 	wg.Add(1)
 	defer wg.Done()
 	for {
-		newId := <-ch
-		index := findIndex(s.ConnectedIds, newId)
+		con := <-ch
+		index := findIndex(s.Connections, con.Id)
 		if index > -1 {
 			s.TotalConns -= 1
-			s.ConnectedIds = append(s.ConnectedIds[:index], s.ConnectedIds[index+1:]...)
+			s.Connections = append(s.Connections[:index], s.Connections[index+1:]...)
 			continue
 		}
 		s.TotalConns += 1
-		s.ConnectedIds = append(s.ConnectedIds, newId)
-		fmt.Println("Counter:", s.TotalConns)
+		s.Connections = append(s.Connections, con)
 	}
 }
-func (s *Server) HandleConnection(con net.Conn, ch chan string) {
+func (s *Server) HandleConnection(con net.Conn, ch chan *Connection) {
 	defer con.Close()
 	id := s.generateID()
+	newCon := Connection{
+		Id:     id,
+		Active: true,
+		Con:    con,
+	}
 	defer func() {
-		ch <- id
+		newCon.Active = false
+		ch <- &newCon
 	}()
-	ch <- id
+
+	ch <- &newCon
 	message := "welcome, your id: " + id + "\n"
+	log.Printf("client %s connected", id)
 	con.Write([]byte(message))
 	reader := bufio.NewReader(con)
 	for {
@@ -98,8 +110,12 @@ func (s *Server) HandleConnection(con net.Conn, ch chan string) {
 			log.Println(err.Error())
 			continue
 		}
+		log.Printf("client %s send %s", id, msg.Comand)
 		if msg.Comand == "LIST" {
 			s.SendIds(con)
+		}
+		if msg.Comand == "RELAY" {
+			s.SendMessageForAll(msg.Body)
 		}
 	}
 }
@@ -117,7 +133,7 @@ func (s *Server) ParseMessage(m string) (Message, error) {
 		Id:     matches[1],
 		Comand: matches[2],
 	}
-	if len(matches) == 3 {
+	if len(matches) == 4 {
 		msg.Body = matches[3]
 	}
 	return msg, nil
@@ -129,9 +145,21 @@ func (s *Server) CheckCommand(m Message) error {
 	return nil
 }
 func (s *Server) SendIds(con net.Conn) {
-	idMessage := strings.Join(s.ConnectedIds, ",")
-	m := "Connected: " + idMessage
+	var connectionIDs string
+
+	for _, conn := range s.Connections {
+		connectionIDs += conn.Id + ","
+	}
+	m := "Connected: " + connectionIDs
 	con.Write([]byte(m))
+}
+func (s *Server) SendMessageForAll(msg string) {
+	for _, conn := range s.Connections {
+		if conn.Active && conn.Con != nil {
+
+			conn.Con.Write([]byte(msg))
+		}
+	}
 }
 func (s *Server) generateID() string {
 	id := uuid.New().String()
