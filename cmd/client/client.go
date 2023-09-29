@@ -26,16 +26,16 @@ func main() {
 
 	var message string
 	for {
+		go receiveMessage(conn)
 		message, _ = in.ReadString('\n')
 		payload := clientId + "|" + message
 		conn.Write([]byte(payload))
-		go receiveMessage(conn)
 	}
 
 }
 func receiveMessage(conn net.Conn) {
-	data := make([]byte, 1024)
 	for {
+		data := make([]byte, 1024)
 		_, err := conn.Read(data)
 		if err != nil {
 			if errors.Is(err, net.ErrWriteToConnected) {
