@@ -144,8 +144,11 @@ func (s *Server) CheckCommand(m Message) error {
 func (s *Server) SendIds(con net.Conn) {
 	var connectionIDs string
 
-	for _, conn := range s.Connections {
-		connectionIDs += conn.Id + ","
+	for i, conn := range s.Connections {
+		connectionIDs += conn.Id
+		if i < len(s.Connections)-1 {
+			connectionIDs += ", "
+		}
 	}
 	m := "Connected: " + connectionIDs
 	con.Write([]byte(m))
