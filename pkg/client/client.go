@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"bufio"
@@ -9,10 +9,11 @@ import (
 	"strings"
 )
 
-func main() {
+func RunTcpClient(port string) {
 	data := make([]byte, 1024)
 	in := bufio.NewReader(os.Stdin)
-	conn, err := net.Dial("tcp", "localhost:8080")
+	host := fmt.Sprintf("localhost:%s", port)
+	conn, err := net.Dial("tcp", host)
 	if err != nil {
 		panic(err)
 	}

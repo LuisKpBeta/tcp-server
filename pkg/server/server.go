@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bufio"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -29,12 +28,10 @@ type Server struct {
 	Connections []*Connection
 }
 
-func main() {
-	port := os.Getenv("PORT")
-	idChannels := make(chan *Connection)
+func CreateAndRunServer(port string) {
 	server := Server{}
+	idChannels := make(chan *Connection)
 	var wg sync.WaitGroup
-
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		panic(err)
@@ -49,6 +46,7 @@ func main() {
 		go server.HandleConnection(conn, idChannels)
 	}
 }
+
 func (s *Server) ServerCounter(wg *sync.WaitGroup, ch chan *Connection) {
 	findIndex := func(slice []*Connection, target string) int {
 		for i, v := range slice {
@@ -119,7 +117,6 @@ func (s *Server) HandleConnection(con net.Conn, ch chan *Connection) {
 		}
 	}
 }
-
 func (s *Server) ParseMessage(m string) (Message, error) {
 	m = strings.Trim(m, "\n")
 	m = strings.Trim(m, " ")
