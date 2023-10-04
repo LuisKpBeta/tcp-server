@@ -60,7 +60,7 @@ func (c *Client) receiveMessage() {
 			break
 		}
 		received := string(data)
-		fmt.Println("server: ", received)
+		fmt.Println("-> ", received)
 	}
 }
 func (c *Client) setClientId(idMsg []byte) {

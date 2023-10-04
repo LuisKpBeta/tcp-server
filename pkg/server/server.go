@@ -113,7 +113,7 @@ func (s *Server) HandleConnection(con net.Conn, ch chan *Connection) {
 			s.SendIds(con)
 		}
 		if msg.Comand == "RELAY" {
-			s.SendMessageForAll(msg.Body)
+			s.SendMessageForAll(msg.Body, id)
 		}
 	}
 }
@@ -150,10 +150,11 @@ func (s *Server) SendIds(con net.Conn) {
 			connectionIDs += ", "
 		}
 	}
-	m := "Connected: " + connectionIDs
+	m := "connected clients: " + connectionIDs
 	con.Write([]byte(m))
 }
-func (s *Server) SendMessageForAll(msg string) {
+func (s *Server) SendMessageForAll(msg string, senderId string) {
+	msg = fmt.Sprintf("client %s says: %s", senderId, msg)
 	for _, conn := range s.Connections {
 		if conn.Active && conn.Con != nil {
 
